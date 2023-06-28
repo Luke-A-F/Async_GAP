@@ -5,19 +5,19 @@ close all
 %Random Seed
 
 %rng(3)%with c = randn(robotNum*taskNum,1); %Can lead to infeasible configurations
-rng(10)
+rng(7)
 %Assignment Problem only ineq assignment constraints
 %Num Robots/Agents
-robotNum =50;
+robotNum =20;
 %Num Tasks
-taskNum = robotNum-10;
+taskNum = robotNum;
 
 %Relaxation constant close to one
-xi = 1-10^-6;
+xi = 1-10^-3;
 %Random Objective function
 
-% c = randn(robotNum*taskNum,1).^2;
-c = rand(robotNum*taskNum,1);
+c = randn(robotNum*taskNum,1);
+
 %Fixed krocker formulation of constraints
 A_assignment = kron(ones(robotNum,1),eye(taskNum,taskNum))';
 A_local = kron(eye(robotNum,robotNum),ones(1,taskNum));
@@ -74,23 +74,24 @@ dualReg = 10^-1;
 slaterTerms = (c'*isGranularCheck+(primalReg/2)*norm(isGranularCheck)^(2))/(-A_assignment(1,:)*isGranularCheck-beq(1)-EIPS(1));
 regCorrectionTest = norm(A_assignment(1,:)*isGranularCheck-beq(1)-EIPS(1))*slaterTerms*sqrt(dualReg/(2*primalReg));
 
-
+%%
 %Async Primal Dual Algorithm Parameters
 scBlock = false;
 primalNum = robotNum;
 dualNum = robotNum;
 commRate = 0.1;
 plotVals = false;
+compute_rate = 1.0;
 
 %Async Primal Dual Algorithm
-[x_async, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,plotVals,xIntegerOptimal);
+[x_async, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
 % roundedGran_async = round(x_async);
 diff_async = norm(x_async-xIntegerOptimal,1)/(1e-10+norm(xIntegerOptimal,1));
 
 commRate = 0.5;
-[x_async_0_5, es_async_0_5,numDualUpdates_async_0_5,convDist_async_0_5,constr_async_0_5,x_async_comparedtoOptimalOverTime_0_5] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,plotVals,xIntegerOptimal);
+[x_async_0_5, es_async_0_5,numDualUpdates_async_0_5,convDist_async_0_5,constr_async_0_5,x_async_comparedtoOptimalOverTime_0_5] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
 commRate = 0.75;
-[x_async_0_75, es_async_0_75,numDualUpdates_async_0_75,convDist_async_0_75,constr_async_0_75,x_async_comparedtoOptimalOverTime_0_75] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,plotVals,xIntegerOptimal);
+[x_async_0_75, es_async_0_75,numDualUpdates_async_0_75,convDist_async_0_75,constr_async_0_75,x_async_comparedtoOptimalOverTime_0_75] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
 if all(Aineq_local*x_async<=bineq) && all(A_assignment*x_async<=beq)
     disp("Async Form is Feasible comm 0.1");
 end
@@ -101,7 +102,7 @@ if all(Aineq_local*x_async_0_5<=bineq) && all(A_assignment*x_async_0_5<=beq)
     disp("Async Form is Feasible comm 0.5");
 end
 
-
+%%
 %Solve Regularized Lagrangian in a centralized algorithm
 [x_centralized, lamGradTest,xComparedToOptimalOverTime,lamList] = centralized_PD_Alg(xInitial,lamInit,c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,xIntegerOptimal,primalReg,dualReg);
 % roundedGran_centralized = round(x_centralized);
@@ -110,7 +111,7 @@ if all(Aineq_local*x_centralized<=bineq) && all(A_assignment*x_centralized<=beq)
     disp("Centralized Form is Feasible");
 end
 
-
+%%
 
 diff_centralized = norm(x_centralized-xIntegerOptimal,1)/(1e-10+norm(xIntegerOptimal,1));
 diff_async2_central = norm(x_centralized-x_async);
@@ -222,3 +223,26 @@ ax.FontSize = fontSizeOverall;
 legend('Comm Rate=1.0','Comm Rate=0.75','Comm Rate=0.5','Comm Rate=0.1','A-Post Feasibility','Interpreter','latex','FontSize',fontSizeOverall);
 % legend('Comm Rate=1.0','Comm Rate=0.1','Interpreter','latex','FontSize',fontSizeOverall);
 
+%%
+%Testing varying computation rate
+fontSizeOverall = 25;
+% close all
+%Async Primal Dual Algorithm Parameters
+scBlock = false;
+primalNum = robotNum;
+dualNum = robotNum;
+commRate = 0.5;
+plotVals = false;
+compute_rate = 0.75;
+maxIterations = 10^5;
+tolerance = 10^-5;
+%Async Primal Dual Algorithm
+[x_async, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
+
+all(Aineq_local*x_async<=bineq) && all(A_assignment*x_async<=beq)
+figure()
+semilogy(x_async_comparedtoOptimalOverTime(2:end)','-','LineWidth',2)
+titleFull = strcat('Distance to Optimum with Comm Rate: ',num2str(commRate),', and Comp Rate: ',num2str(compute_rate));
+title(titleFull,'FontSize',fontSizeOverall)
+ylabel('$||z_{\kappa}(k) - z^{*}_{MILP}||$','Interpreter','latex','FontWeight','Bold','FontSize',fontSizeOverall)
+xlabel('Iteration Number','FontWeight','Bold','FontSize',fontSizeOverall)
