@@ -8,7 +8,7 @@ close all
 rng(7)
 %Assignment Problem only ineq assignment constraints
 %Num Robots/Agents
-robotNum =20;
+robotNum =100;
 %Num Tasks
 taskNum = robotNum;
 
@@ -27,13 +27,14 @@ lb_relax = (0.5-xi)*ones(size(c,1),1);
 ub_relax = 1+(xi-0.5)*ones(size(c,1),1);
 lb = zeros(1,robotNum*taskNum);
 ub = ones(1,robotNum*taskNum);
-LocalConstraints =((minLC*abs(rand(size(A_local,2),1))+1).*A_local')';
+LocalConstraints =((minLC*abs(round(rand(size(A_local,2),1))+1)).*A_local')';
 Aineq_local = LocalConstraints;
-maxLC = 1.2;
+maxLC = 2.2;
 maxLocalConstraints = maxLC*ones(robotNum,1);
 bineq = maxLocalConstraints;
 %Enlarged Inner Parallel Set Computation
 EIPS = -sum(abs([A_assignment;Aineq_local])')'./2+xi;
+
 
 %Algorithm parameters & initialization
 xInitial = ones(size(c,2),1);
@@ -68,12 +69,42 @@ end
 
 %Compute Regularization error terms
 %Original
-primalReg =10^-3; 
-dualReg = 10^-1;
+primalReg =10^-5; 
+dualReg = 10^-4;
+% primalReg =10^-2; 
+% dualReg = 10^-1;
+
 
 slaterTerms = (c'*isGranularCheck+(primalReg/2)*norm(isGranularCheck)^(2))/(-A_assignment(1,:)*isGranularCheck-beq(1)-EIPS(1));
 regCorrectionTest = norm(A_assignment(1,:)*isGranularCheck-beq(1)-EIPS(1))*slaterTerms*sqrt(dualReg/(2*primalReg));
 
+%%
+% Testing Slater's
+% [x_centralized, lamGradTest,xComparedToOptimalOverTime,lamList] = centralized_PD_Alg(xInitial,lamInit,c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,xIntegerOptimal,primalReg,dualReg);
+[x_centralized, lamGradTest,xComparedToOptimalOverTime,lamList] = centralized_PD_Alg(xInitial,lamInit,c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,xIntegerOptimal,primalReg,dualReg);
+% roundedGran_centralized = round(x_centralized);
+
+if all(Aineq_local*x_centralized<=bineq) && all(A_assignment*x_centralized<=beq)
+    disp("Centralized Form is Feasible");
+end
+
+
+%%
+% Fixing minor infeasibility with a bit of low async
+commRate = 1.0;
+computeRate = 0.5;
+maxIterations = 10^2;
+[x_async_075, ~,~,~,~,~] = Async_PD(x_async_075,c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
+if sum(Aineq_local*x_async_0_5<=bineq) && all(A_assignment*x_async_0_5<=beq)
+    disp("Original Comp of 0.75 is now feasible after being used to warm start Comm of 0.5");
+end
+% [x_async_0_5, ~,~,~] = centralized_PD_Alg(x_async_0_5,lamInit,c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,xIntegerOptimal,primalReg,dualReg);
+%%
+[x_async_0_1, ~,~,~] = centralized_PD_Alg(x_async_0_1,lamInit,c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,xIntegerOptimal,primalReg,dualReg);
+
+%%
+%Fixing minor infeasibility with a bit of low async
+[x_async_05, ~,~,~] = centralized_PD_Alg(x_async_05,lamInit,c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,xIntegerOptimal,primalReg,dualReg);
 %%
 %Async Primal Dual Algorithm Parameters
 scBlock = false;
@@ -83,15 +114,28 @@ commRate = 0.1;
 plotVals = false;
 compute_rate = 1.0;
 
+
+
 %Async Primal Dual Algorithm
-[x_async, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
-% roundedGran_async = round(x_async);
-diff_async = norm(x_async-xIntegerOptimal,1)/(1e-10+norm(xIntegerOptimal,1));
+% Testing if different vals are needed
+maxIterations = 10^4;
 
 commRate = 0.5;
-[x_async_0_5, es_async_0_5,numDualUpdates_async_0_5,convDist_async_0_5,constr_async_0_5,x_async_comparedtoOptimalOverTime_0_5] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
+[x_async_0_5, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
+% roundedGran_async = round(x_async);
+diff_async = norm(x_async_0_5-xIntegerOptimal,1)/(1e-10+norm(xIntegerOptimal,1));
+
+if all(Aineq_local*x_async_0_5<=bineq) && all(A_assignment*x_async_0_5<=beq)
+    disp("Async Form is Feasible comm 0.5");
+end
+
+%%
+commRate = 0.1;
+[x_async, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
+commRate = 0.5;
+[x_async_0_5, es_async_0_5,numDualUpdates_async_0_5,convDist_async_0_5,constr_async_0_5,x_async_comparedtoOptimalOverTime_0_5] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
 commRate = 0.75;
-[x_async_0_75, es_async_0_75,numDualUpdates_async_0_75,convDist_async_0_75,constr_async_0_75,x_async_comparedtoOptimalOverTime_0_75] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
+[x_async_0_75, es_async_0_75,numDualUpdates_async_0_75,convDist_async_0_75,constr_async_0_75,x_async_comparedtoOptimalOverTime_0_75] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
 if all(Aineq_local*x_async<=bineq) && all(A_assignment*x_async<=beq)
     disp("Async Form is Feasible comm 0.1");
 end
@@ -102,9 +146,9 @@ if all(Aineq_local*x_async_0_5<=bineq) && all(A_assignment*x_async_0_5<=beq)
     disp("Async Form is Feasible comm 0.5");
 end
 
-%%
+
 %Solve Regularized Lagrangian in a centralized algorithm
-[x_centralized, lamGradTest,xComparedToOptimalOverTime,lamList] = centralized_PD_Alg(xInitial,lamInit,c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,xIntegerOptimal,primalReg,dualReg);
+[x_centralized, lamGradTest,xComparedToOptimalOverTime,lamList] = centralized_PD_Alg(xInitial,lamInit,c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,xIntegerOptimal,primalReg,dualReg);
 % roundedGran_centralized = round(x_centralized);
 
 if all(Aineq_local*x_centralized<=bineq) && all(A_assignment*x_centralized<=beq)
@@ -135,57 +179,6 @@ apost_feasibilityEB_central = norm(x_centralized-xIntegerOptimal,2)+kap*h;
 %Async form
 apost_optimalityEB_async = norm(c,2)*(norm(x_async-xIntegerOptimal,2)+kap*0.5)+norm(c,2)*kap*(h/2);
 apost_feasibilityEB_async = norm(x_async-xIntegerOptimal,2)+kap*h;
-%%
-
-%Plotting differences in communication rates
-%  figure()
-% 
-% hold on
-% semilogy(es1(2:500)','-','LineWidth',2)
-% semilogy(es075(2:500)','-','LineWidth',2)
-% semilogy(es05(2:500)','-','LineWidth',2)
-% semilogy(es01(2:500)','-','LineWidth',2)
-% % semilogy(esLP(2:end)','-','LineWidth',2)
-% title('Cost')
-% xlabel('Iteration Number','FontWeight','Bold')
-% ylabel('$c^{T}\cdot z(k)$','Interpreter','latex','FontWeight','Bold')
-% hold off
-% legend('Comm Rate=1.0','Comm Rate=0.75','Comm Rate=0.5','Comm Rate=0.1');
-% %%
-% figure ()
-% fontSizeOverall = 25;
-% hold on
-% semilogy(convDist1(2:300)','-','LineWidth',2)
-% semilogy(convDist075(2:300)','-','LineWidth',2)
-% semilogy(convDist05(2:300)','-','LineWidth',2)
-% semilogy(convDist01(2:300)','-','LineWidth',2)
-% % semilogy(convDistLP(2:500)','-','LineWidth',2)
-% ax = gca;
-% ax.FontSize = fontSizeOverall;
-% % semilogy(convDistLP(2:end)','-','LineWidth',2)
-% title('Distance Between Iterates Convergence Comparison','FontSize',fontSizeOverall)
-% xlabel('Iteration Number','FontWeight','Bold','FontSize',fontSizeOverall)
-% ylabel('$||z(k) - z(k-1)||$','Interpreter','latex','FontWeight','Bold','FontSize',fontSizeOverall)
-% hold off
-% legend('Comm Rate=1.0','Comm Rate=0.75','Comm Rate=0.5','Comm Rate=0.1','FontSize',fontSizeOverall);
-% 
-% %%
-% 
-% 
-% 
-% figure()
-% % 
-% hold on
-% semilogy(constr1(2:500)','-','LineWidth',2)
-% semilogy(constr075(2:500)','-','LineWidth',2)
-% semilogy(constr05(2:500)','-','LineWidth',2)
-% semilogy(constr01(2:500)','-','LineWidth',2)
-% semilogy(constrLP(2:500)','-','LineWidth',2)
-% title('Constraint Satisfaction Relative to Iteration Number')
-% xlabel('Iteration Number','FontWeight','Bold')
-% ylabel('$Az(k)-b$','Interpreter','latex','FontWeight','Bold')
-% hold off
-% legend('Comm Rate=1.0','Comm Rate=0.75','Comm Rate=0.5','Comm Rate=0.1');
 
 
 
@@ -194,25 +187,25 @@ close all
 figure ()
 fontSizeOverall = 25;
 hold on
-plotLen = 5000;
-if length(xComparedToOptimalOverTime)>= plotLen
-    semilogy(xComparedToOptimalOverTime(2:plotLen)','-','LineWidth',2)
-    semilogy(x_async_comparedtoOptimalOverTime_0_75(2:plotLen)','-','LineWidth',2)
-    semilogy(x_async_comparedtoOptimalOverTime_0_5(2:plotLen)','-','LineWidth',2)
-    semilogy(x_async_comparedtoOptimalOverTime(2:plotLen)','-','LineWidth',2)
-
-else
+plotLen = 1000000;
+% if length(xComparedToOptimalOverTime)>= plotLen 
+%     semilogy(xComparedToOptimalOverTime(2:plotLen)','-','LineWidth',2)
+%     semilogy(x_async_comparedtoOptimalOverTime_0_75(2:plotLen)','-','LineWidth',2)
+%     semilogy(x_async_comparedtoOptimalOverTime_0_5(2:plotLen)','-','LineWidth',2)
+%     semilogy(x_async_comparedtoOptimalOverTime(2:plotLen)','-','LineWidth',2)
+% 
+% else
     semilogy(xComparedToOptimalOverTime(2:end)','-','LineWidth',2)
     semilogy(x_async_comparedtoOptimalOverTime_0_75(2:end)','-','LineWidth',2)
     semilogy(x_async_comparedtoOptimalOverTime_0_5(2:end)','-','LineWidth',2)
     semilogy(x_async_comparedtoOptimalOverTime(2:end)','-','LineWidth',2)
-end
+% end
 
 %Plot Theoretical Error Bounds
-EB_plot_length = length(x_async_comparedtoOptimalOverTime(2:end));
-eb_xPlot = linspace(0,EB_plot_length,EB_plot_length);
-eb_yPlot = apost_feasibilityEB_async *ones(EB_plot_length);
-plot(eb_xPlot,eb_yPlot,'g')
+% EB_plot_length = length(x_async_comparedtoOptimalOverTime(2:plotLen));
+% eb_xPlot = linspace(0,EB_plot_length,EB_plot_length);
+% eb_yPlot = apost_feasibilityEB_async *ones(EB_plot_length);
+% plot(eb_xPlot,eb_yPlot,'g')
 title('Distance to Optimum','FontSize',fontSizeOverall)
 ylabel('$||z_{\kappa}(k) - z^{*}_{MILP}||$','Interpreter','latex','FontWeight','Bold','FontSize',fontSizeOverall)
 xlabel('Iteration Number','FontWeight','Bold','FontSize',fontSizeOverall)
@@ -230,19 +223,66 @@ fontSizeOverall = 25;
 %Async Primal Dual Algorithm Parameters
 scBlock = false;
 primalNum = robotNum;
-dualNum = robotNum;
-commRate = 0.5;
+dualNum = robotNum-30;
+commRate = 1.0;
 plotVals = false;
-compute_rate = 0.75;
+compute_rate = 1.0;
 maxIterations = 10^5;
 tolerance = 10^-5;
 %Async Primal Dual Algorithm
-[x_async, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS+regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
-
+%spmd
+[x_async, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
 all(Aineq_local*x_async<=bineq) && all(A_assignment*x_async<=beq)
+compute_rate = 0.75;
+[x_async_075, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime_075] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
+
+all(Aineq_local*x_async_075<=bineq) && all(A_assignment*x_async_075<=beq)
+compute_rate = 0.5;
+[x_async_05, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime_05] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
+all(Aineq_local*x_async_05<=bineq) && all(A_assignment*x_async_05<=beq)
+compute_rate = 0.1;
+[x_async_01, es_async,numDualUpdates_async,convDist_async,constr_async,x_async_comparedtoOptimalOverTime_01] = Async_PD(c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,primalReg,dualReg,scBlock,primalNum,dualNum,commRate,compute_rate,plotVals,xIntegerOptimal);
+all(Aineq_local*x_async_01<=bineq) && all(A_assignment*x_async_01<=beq)
+
+[x_centralized, lamGradTest,xComparedToOptimalOverTime,lamList] = centralized_PD_Alg(xInitial,lamInit,c,[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,stepSize,maxIterations,tolerance,lbPrimal,ubPrimal,lbDual,ubDual,xIntegerOptimal,primalReg,dualReg);
+%end
+%%
+fontSizeOverall = 25;
 figure()
+hold on
 semilogy(x_async_comparedtoOptimalOverTime(2:end)','-','LineWidth',2)
-titleFull = strcat('Distance to Optimum with Comm Rate: ',num2str(commRate),', and Comp Rate: ',num2str(compute_rate));
+semilogy(x_async_comparedtoOptimalOverTime_075(2:end)','-','LineWidth',2)
+semilogy(x_async_comparedtoOptimalOverTime_05(2:end)','-','LineWidth',2)
+semilogy(x_async_comparedtoOptimalOverTime_01(2:end)','-','LineWidth',2)
+%Plot Theoretical Error Bounds
+% EB_plot_length = length(x_async_comparedtoOptimalOverTime(2:plotLen));
+% eb_xPlot = linspace(0,EB_plot_length,EB_plot_length);
+% eb_yPlot = apost_feasibilityEB_async *ones(EB_plot_length);
+% plot(eb_xPlot,eb_yPlot,'g')
+ax = gca;
+ax.FontSize = fontSizeOverall;
+titleFull = strcat('Distance to Optimum');
 title(titleFull,'FontSize',fontSizeOverall)
 ylabel('$||z_{\kappa}(k) - z^{*}_{MILP}||$','Interpreter','latex','FontWeight','Bold','FontSize',fontSizeOverall)
+
 xlabel('Iteration Number','FontWeight','Bold','FontSize',fontSizeOverall)
+legend('Comp Rate=1.0','Comp Rate=0.75','Comp Rate=0.5','Comp Rate=0.1','A-Post Feasibility','Interpreter','latex','FontSize',fontSizeOverall);
+ylim([0, inf])
+
+%%
+%Finding regularization terms that work
+
+primalReg =10^-5; 
+dualReg = 10^-4;
+% primalReg =10^-2; 
+% dualReg = 10^-1;
+
+slaterTerms = (c'*isGranularCheck+(primalReg/2)*norm(isGranularCheck)^(2))/(-A_assignment(1,:)*isGranularCheck-beq(1)-EIPS(1));
+regCorrectionTest = norm(A_assignment(1,:)*isGranularCheck-beq(1)-EIPS(1))*slaterTerms*sqrt(dualReg/(2*primalReg));
+
+opts = optiset('solver','scip');
+SCIPOptimization = opti('f',c,'ineq',[A_assignment;Aineq_local],[floor(beq);floor(bineq)]+EIPS-regCorrectionTest,'bounds',lb_relax,ub_relax,'options',opts);
+[testing123, fval_granCheck, granular, info] = solve(SCIPOptimization);
+scipTest = round(testing123);
+
+all(Aineq_local*scipTest<=bineq) && all(A_assignment*scipTest<=beq)
