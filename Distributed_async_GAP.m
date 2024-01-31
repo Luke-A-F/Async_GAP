@@ -61,7 +61,7 @@ SCIPOptimization = opti('f',zeros(size(c)),'ineq',[A_assignment;Aineq_local],[fl
 [isGranularCheck, fval_granCheck, granular, info] = solve(SCIPOptimization);
 %-1 means infeasible
 %1 means feasible
-if granular == 1
+if granular == 1 && sum(isGranularCheck)>0
     disp("Granular");
 else
     disp("Not Granular");
