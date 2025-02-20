@@ -28,6 +28,8 @@ area(x,y_MILP,'FaceColor','b','FaceAlpha',0.3,'EdgeAlpha',0.3,'LineWidth',2);
 % plot(x,y_xi_0_8);
 
 % plot(x,y_xi_1);
+ax = gca;
+ax.FontSize = fontSizeOverall;
 plot(x,y0,'k','LineWidth',2);
 plot(x,y1,'k','LineWidth',2);
 plot(x,y2,'k','LineWidth',2);
