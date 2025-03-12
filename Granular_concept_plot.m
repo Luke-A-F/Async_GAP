@@ -33,7 +33,7 @@ ax.FontSize = fontSizeOverall;
 plot(x,y0,'k','LineWidth',2);
 plot(x,y1,'k','LineWidth',2);
 plot(x,y2,'k','LineWidth',2);
-xlabel("Reals",'FontWeight','Bold','FontSize',fontSizeOverall);
-ylabel("Integers",'FontWeight','Bold','FontSize',fontSizeOverall);
+xlabel('x','Interpreter','latex','FontWeight','Bold','FontSize',fontSizeOverall);
+ylabel('y','Interpreter','latex','FontWeight','Bold','FontSize',fontSizeOverall);
 
 legend('$\xi=1$','$\xi = 0.8$', 'MILP','Interpreter','latex','FontWeight','Bold','FontSize',fontSizeOverall);
