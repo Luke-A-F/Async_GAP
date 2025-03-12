@@ -20,9 +20,9 @@ y_xi_1 = 2.5-x;
 xlim([0,3]);
 ylim([0,3]);
 hold on
-area(x,y_xi_1,'FaceColor','m','FaceAlpha',0.3,'EdgeAlpha',0.3,'LineWidth',2);
-area(x,y_xi_0_8,'FaceColor','g','FaceAlpha',0.3,'EdgeAlpha',0.3,'LineWidth',2);
-area(x,y_MILP,'FaceColor','b','FaceAlpha',0.3,'EdgeAlpha',0.3,'LineWidth',2);
+area(x,y_xi_1,'FaceColor','m','FaceAlpha',0.5,'EdgeAlpha',0.3,'LineWidth',2);
+area(x,y_xi_0_8,'FaceColor','g','FaceAlpha',0.5,'EdgeAlpha',0.3,'LineWidth',2);
+area(x,y_MILP,'FaceColor','b','FaceAlpha',0.5,'EdgeAlpha',0.3,'LineWidth',2);
 % plot(x,y_MILP);
 
 % plot(x,y_xi_0_8);
